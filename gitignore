@@ -1,0 +1,24 @@
+# ════════════════════════════════
+# Argent Clair — .gitignore
+# ════════════════════════════════
+
+# Documentation interne (ne pas exposer publiquement)
+ADMIN-PREMIUM.md
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Éditeurs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Fichiers temporaires
+*.tmp
+*.bak
