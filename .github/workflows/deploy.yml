@@ -1,0 +1,109 @@
+# ═══════════════════════════════════════════════════════════════
+# Argent Clair — GitHub Actions Deploy Pipeline
+#
+# Ce workflow :
+#   1. Injecte les secrets (SALT Premium, numéro WhatsApp)
+#      dans index.html au moment du build
+#   2. Déploie le résultat sur GitHub Pages
+#
+# Les secrets sont définis dans :
+#   GitHub → Settings → Secrets and variables → Actions
+# ═══════════════════════════════════════════════════════════════
+
+name: Deploy Argent Clair
+
+on:
+  push:
+    branches: [ main ]          # Se déclenche à chaque push sur main
+  workflow_dispatch:             # Permet de lancer manuellement depuis GitHub
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      # ── Étape 1 : Récupérer le code source ──
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Étape 2 : Injecter les secrets dans index.html ──
+      - name: Inject secrets into index.html
+        env:
+          PREMIUM_SALT: ${{ secrets.PREMIUM_SALT }}
+          WHATSAPP_NUMBER: ${{ secrets.WHATSAPP_NUMBER }}
+        run: |
+          # Vérifier que les secrets sont bien définis
+          if [ -z "$PREMIUM_SALT" ]; then
+            echo "❌ ERREUR : Le secret PREMIUM_SALT n'est pas défini."
+            echo "   Allez dans Settings → Secrets → Actions et ajoutez PREMIUM_SALT"
+            exit 1
+          fi
+
+          if [ -z "$WHATSAPP_NUMBER" ]; then
+            echo "❌ ERREUR : Le secret WHATSAPP_NUMBER n'est pas défini."
+            echo "   Allez dans Settings → Secrets → Actions et ajoutez WHATSAPP_NUMBER"
+            exit 1
+          fi
+
+          echo "✅ Secrets détectés — injection en cours..."
+
+          # Remplacer le placeholder SALT par la vraie valeur
+          sed -i "s|%%PREMIUM_SALT%%|${PREMIUM_SALT}|g" index.html
+
+          # Remplacer le numéro WhatsApp dans le lien wa.me
+          sed -i "s|237XXXXXXXXX|${WHATSAPP_NUMBER}|g" index.html
+
+          # Vérifier que le remplacement a bien eu lieu
+          if grep -q "%%PREMIUM_SALT%%" index.html; then
+            echo "❌ ERREUR : Le placeholder PREMIUM_SALT n'a pas été remplacé"
+            exit 1
+          fi
+
+          if grep -q "237XXXXXXXXX" index.html; then
+            echo "❌ ERREUR : Le placeholder WHATSAPP_NUMBER n'a pas été remplacé"
+            exit 1
+          fi
+
+          echo "✅ Injection réussie"
+
+      # ── Étape 3 : Vérifier la taille du fichier ──
+      - name: Verify build
+        run: |
+          echo "📦 Fichiers à déployer :"
+          ls -lh index.html manifest.json sw.js icon-192.svg icon-512.svg
+          echo ""
+          echo "✅ Build prêt pour déploiement"
+
+      # ── Étape 4 : Configurer GitHub Pages ──
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      # ── Étape 5 : Créer l'artifact de déploiement ──
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'           # Déploie tout le contenu du dossier racine
+
+      # ── Étape 6 : Déployer sur GitHub Pages ──
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      # ── Étape 7 : Afficher l'URL de l'app ──
+      - name: Show deployment URL
+        run: |
+          echo ""
+          echo "🚀 Argent Clair déployé avec succès !"
+          echo "🌐 URL : ${{ steps.deployment.outputs.page_url }}"
