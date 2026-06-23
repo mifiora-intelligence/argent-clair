@@ -3,7 +3,7 @@
 // Stratégie : Cache First pour assets, Network First pour navigation
 // ═══════════════════════════════════════════════════════
 
-const CACHE_NAME = 'argent-clair-v1';
+const CACHE_NAME = 'argent-clair-v2';
 
 const ASSETS = [
   './',
