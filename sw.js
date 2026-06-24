@@ -1,63 +1,89 @@
 // ═══════════════════════════════════════════════════════
-// Argent Clair — Service Worker v1.0
-// Stratégie : Cache First pour assets, Network First pour navigation
+// Argent Clair — Service Worker v2
+// Stratégie : Cache First pour TOUT (app offline-first)
 // ═══════════════════════════════════════════════════════
 
-const CACHE_NAME = 'argent-clair-v2';
+const CACHE_NAME = 'argent-clair-v3';
 
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './icon-192.svg',
-  './icon-512.svg'
+  './icon-512.svg',
+  './sw.js'
 ];
 
+// ── Installation : mise en cache immédiate et complète ──
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(ASSETS))
+      .then(cache => {
+        return Promise.all(
+          ASSETS.map(url =>
+            cache.add(url).catch(err => {
+              console.warn('Cache miss pour', url, err);
+            })
+          )
+        );
+      })
       .then(() => self.skipWaiting())
   );
 });
 
+// ── Activation : supprimer les anciens caches ──
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-      )
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
+// ── Fetch : Cache First pour tout ──
 self.addEventListener('fetch', event => {
-  const { request } = event;
-  const url = new URL(request.url);
+  // Ignorer les requêtes non-GET
+  if (event.request.method !== 'GET') return;
 
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
+  const url = new URL(event.request.url);
 
-  if (url.origin === self.location.origin) {
-    event.respondWith(
-      caches.match(request).then(cached => {
-        if (cached) return cached;
-        return fetch(request).then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
-          return response;
-        });
+  // Ignorer les requêtes vers d'autres origines (analytics, etc.)
+  if (url.origin !== self.location.origin) return;
+
+  event.respondWith(
+    caches.match(event.request)
+      .then(cached => {
+        if (cached) {
+          // Retourner depuis le cache immédiatement
+          // Mettre à jour en arrière-plan si réseau disponible
+          fetch(event.request)
+            .then(response => {
+              if (response && response.status === 200) {
+                caches.open(CACHE_NAME)
+                  .then(cache => cache.put(event.request, response));
+              }
+            })
+            .catch(() => {}); // Silencieux si pas de réseau
+          return cached;
+        }
+
+        // Pas en cache — essayer le réseau
+        return fetch(event.request)
+          .then(response => {
+            if (!response || response.status !== 200) return response;
+            const clone = response.clone();
+            caches.open(CACHE_NAME)
+              .then(cache => cache.put(event.request, clone));
+            return response;
+          })
+          .catch(() => {
+            // Hors ligne et pas en cache — retourner index.html comme fallback
+            if (event.request.mode === 'navigate') {
+              return caches.match('./index.html');
+            }
+          });
       })
-    );
-  }
+  );
 });
