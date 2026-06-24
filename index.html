@@ -1642,6 +1642,28 @@ async function resetAllData(){
 }
 
 /* ══════════════════════════════════════════
+   OFFLINE / ONLINE
+══════════════════════════════════════════ */
+function updateOnlineStatus(){
+  const online = navigator.onLine;
+  let bar = document.getElementById('offline-bar');
+  if(!online){
+    if(!bar){
+      bar = document.createElement('div');
+      bar.id = 'offline-bar';
+      bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999;background:#E8A020;color:#fff;font-size:12px;font-weight:700;text-align:center;padding:6px;letter-spacing:.3px;';
+      bar.textContent = '✈️ Mode hors ligne — vos données sont disponibles';
+      document.body.prepend(bar);
+    }
+  } else {
+    if(bar) bar.remove();
+  }
+}
+window.addEventListener('online',  updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+/* ══════════════════════════════════════════
    OVERLAY / TOAST
 ══════════════════════════════════════════ */
 function openOv(id){document.getElementById(id).classList.add('open');}
@@ -1659,7 +1681,77 @@ function toast(msg,type=''){
 /* ══════════════════════════════════════════
    INITIALISATION
 ══════════════════════════════════════════ */
-openDB().then(renderDash).catch(()=>toast('Erreur de stockage','err'));
+// ── Initialisation robuste ──
+function initApp() {
+  openDB()
+    .then(() => {
+      renderDash();
+    })
+    .catch(err => {
+      console.error('IndexedDB error:', err);
+      // Réessayer une fois après 800ms (utile au démarrage offline)
+      setTimeout(() => {
+        openDB()
+          .then(() => renderDash())
+          .catch(() => {
+            // Afficher un état dégradé plutôt qu'un toast d'erreur
+            const el = document.getElementById('dash-recent');
+            if(el) el.innerHTML = `<div class="empty">
+              <div class="ei">⚠️</div>
+              <div class="et">Démarrage en cours…</div>
+              <div class="es">Rechargez l'application si cela persiste.</div>
+            </div>`;
+          });
+      }, 800);
+    });
+}
+initApp();
+
+/* ══════════════════════════════════════════
+   SERVICE WORKER
+══════════════════════════════════════════ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js', {scope: './'})
+      .then(reg => {
+        console.log('✓ SW enregistré', reg.scope);
+        // Forcer la mise à jour si nouvelle version disponible
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          newSW.addEventListener('statechange', () => {
+            if(newSW.state === 'installed' && navigator.serviceWorker.controller){
+              console.log('✓ Nouvelle version disponible');
+            }
+          });
+        });
+      })
+      .catch(err => console.warn('SW non enregistré :', err));
+  });
+}
+
+/* ══════════════════════════════════════════
+   INSTALL BANNER (Android)
+══════════════════════════════════════════ */
+let _dp = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _dp = e;
+  const b = document.getElementById('install-banner');
+  if(b) b.style.display = 'flex';
+});
+function installApp(){
+  if(!_dp) return;
+  _dp.prompt();
+  _dp.userChoice.then(() => {
+    _dp = null;
+    const b = document.getElementById('install-banner');
+    if(b) b.style.display = 'none';
+  });
+}
+window.addEventListener('appinstalled', () => {
+  const b = document.getElementById('install-banner');
+  if(b) b.style.display = 'none';
+});
 </script>
 
 <!-- Bandeau installation Android -->
