@@ -1,0 +1,39 @@
+# ═══════════════════════════════════════════════════════════
+# Argent Clair — Configuration Netlify
+# ═══════════════════════════════════════════════════════════
+
+[build]
+  publish = "."          # Déployer tout le dossier racine
+  command = "echo 'Build OK'"  # Pas de build — fichiers statiques
+
+# ── Headers de sécurité et performance ──
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+# ── Cache long pour les assets statiques ──
+[[headers]]
+  for = "/icon-*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+# ── Service Worker — pas de cache (doit toujours être frais) ──
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# ── Redirection : toujours servir index.html (SPA fallback) ──
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
