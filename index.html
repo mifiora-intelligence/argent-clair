@@ -716,6 +716,9 @@ button, input, select { font-family: var(--font); }
         </div>
         <button class="btn-icon" id="theme-btn2" onclick="toggleTheme()">🌙</button>
       </div>
+      <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px;" id="network-status">
+        <!-- Rempli par renderParam() -->
+      </div>
     </div>
 
     <!-- ── CATÉGORIES PERSONNALISÉES ── -->
@@ -1576,6 +1579,22 @@ async function renderCatManage(){
 function renderParam(){
   const th=document.documentElement.getAttribute('data-theme');
   ['theme-btn','theme-btn2'].forEach(id=>{const b=document.getElementById(id);if(b)b.textContent=th==='light'?'🌙':'☀️';});
+
+  // ── Statut réseau discret ──
+  const netEl = document.getElementById('network-status');
+  if(netEl){
+    const online = navigator.onLine;
+    netEl.innerHTML = online
+      ? `<div style="display:flex;align-items:center;justify-content:space-between;">
+           <span style="font-size:13px;color:var(--text2);">Connexion</span>
+           <span style="font-size:12px;font-weight:700;color:#2A9A5A;background:rgba(42,154,90,.1);padding:3px 10px;border-radius:6px;">🟢 En ligne</span>
+         </div>`
+      : `<div style="display:flex;align-items:center;justify-content:space-between;">
+           <span style="font-size:13px;color:var(--text2);">Connexion</span>
+           <span style="font-size:12px;font-weight:700;color:#C8522A;background:rgba(200,82,42,.1);padding:3px 10px;border-radius:6px;">✈️ Hors ligne</span>
+         </div>
+         <div style="font-size:11px;color:var(--text3);margin-top:5px;">L'application fonctionne normalement — vos données sont disponibles.</div>`;
+  }
   renderCatManage();
   const card=document.getElementById('premium-status-card');
   if(!card)return;
@@ -1642,28 +1661,6 @@ async function resetAllData(){
 }
 
 /* ══════════════════════════════════════════
-   OFFLINE / ONLINE
-══════════════════════════════════════════ */
-function updateOnlineStatus(){
-  const online = navigator.onLine;
-  let bar = document.getElementById('offline-bar');
-  if(!online){
-    if(!bar){
-      bar = document.createElement('div');
-      bar.id = 'offline-bar';
-      bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999;background:#E8A020;color:#fff;font-size:12px;font-weight:700;text-align:center;padding:6px;letter-spacing:.3px;';
-      bar.textContent = '✈️ Mode hors ligne — vos données sont disponibles';
-      document.body.prepend(bar);
-    }
-  } else {
-    if(bar) bar.remove();
-  }
-}
-window.addEventListener('online',  updateOnlineStatus);
-window.addEventListener('offline', updateOnlineStatus);
-updateOnlineStatus();
-
-/* ══════════════════════════════════════════
    OVERLAY / TOAST
 ══════════════════════════════════════════ */
 function openOv(id){document.getElementById(id).classList.add('open');}
@@ -1706,6 +1703,12 @@ function initApp() {
     });
 }
 initApp();
+
+/* ══════════════════════════════════════════
+   ONLINE / OFFLINE (mise à jour discrète)
+══════════════════════════════════════════ */
+window.addEventListener('online',  () => { const s=document.getElementById('s-param'); if(s&&s.classList.contains('active')) renderParam(); });
+window.addEventListener('offline', () => { const s=document.getElementById('s-param'); if(s&&s.classList.contains('active')) renderParam(); });
 
 /* ══════════════════════════════════════════
    SERVICE WORKER
