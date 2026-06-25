@@ -3,7 +3,7 @@
 // Stratégie : Cache First pour TOUT (app offline-first)
 // ═══════════════════════════════════════════════════════
 
-const CACHE_NAME = 'argent-clair-v3';
+const CACHE_NAME = 'argent-clair-v2';
 
 const ASSETS = [
   './',
