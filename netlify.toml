@@ -35,15 +35,10 @@
     Cache-Control = "no-cache, no-store, must-revalidate"
 
 # ── SPA fallback ──
+# Note : /.netlify/functions/* est géré automatiquement par Netlify
+# Ne jamais redéfinir ce chemin ici
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
   status = 200
   force  = false
-
-# Exclure les functions du fallback
-[[redirects]]
-  from   = "/.netlify/functions/*"
-  to     = "/.netlify/functions/:splat"
-  status = 200
-  force  = true
